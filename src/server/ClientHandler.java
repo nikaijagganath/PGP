@@ -57,10 +57,8 @@ public class ClientHandler extends Thread {
         userName = null;
         try {
             OutputStream os = clientSocket.getOutputStream();
-            //BufferedOutputStream bos= new BufferedOutputStream(os);
             writer = new ObjectOutputStream(os);   //MESSAGE
             InputStream is = clientSocket.getInputStream();
-            //BufferedInputStream bis= new BufferedInputStream(is);
             reader = new ObjectInputStream(is); //MESSAGE
         } 
         catch (IOException ex) {
@@ -90,9 +88,6 @@ public class ClientHandler extends Thread {
                     {
                     case ClientProtocol.LOGIN_CMD:  //received login message
                         processLogin(m);
-                        break;
-                    case ClientProtocol.NEW_USER_CMD:   //received new user message
-                        processNewUser(m);
                         break;
                     case ClientProtocol.LOGOFF_CMD: //received logoff message
                         processLogoff();
@@ -143,30 +138,6 @@ public class ClientHandler extends Thread {
     }
     
     //Methods to process clients messages:
-    
-    /**
-     * Checks for correct login command format.
-     * Checks that user name and password do not match up and correspond to stored details.
-     * If details can be used for new user then new user details stored and saved.
-     * If details are incorrect/taken the new user is denied and user is informed.
-     * @param m client message
-     */
-    private void processNewUser(Message m) throws IOException {
-        String name= ClientProtocol.getNewUserMessageUsername(m);
-        String password= ClientProtocol.getNewUserMessagePassword(m);
-        System.out.println("User attempted to add user: " + name + " " + password);
-        
-        if (server.addUser(name, password)) {   //can be added
-            System.out.println("User created succesfully: " + userName);
-            Message msg= ServerProtocol.createResponseMessage(ClientProtocol.NEW_USER_CMD, ServerProtocol.SUCCESS_MSG, "Successful sign-up!"); //MESSAGE
-            writer.writeObject(msg);
-        } 
-        else {      //username taken
-            Message msg= ServerProtocol.createResponseMessage(ClientProtocol.NEW_USER_CMD, ServerProtocol.FAIL_MSG, "Username is taken.");    //MESSAGE
-            writer.writeObject(msg);    //MESSAGE
-            System.err.println("ERROR: User Sign Up. " + name + " " + password);
-        }
-    }
     
     /**
      * Processes a client's logging off by removing the client's corresponding handler thread from the server's list of handlers.

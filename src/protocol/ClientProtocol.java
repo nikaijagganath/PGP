@@ -45,16 +45,6 @@ public class ClientProtocol {
     }
     
     /**
-     * Creates a new user message.
-     * @param userName username to create
-     * @param password password to create
-     * @return message to send to server
-     */
-    public static Message createNewUserMessage(String userName, String password) {
-        return new Message(NEW_USER_CMD, userName, null, password);
-    }
-    
-    /**
      * Creates a log off message.
      * @return message to send to server
      */
@@ -103,25 +93,6 @@ public class ClientProtocol {
     public static String getLoginMessagePassword(Message m) {
         return m.message;
     }
-    
-    //New User messages:
-    /**
-     * Gets the user name from a new user message.
-     * @param m client message 
-     * @return user name
-     */
-    public static String getNewUserMessageUsername(Message m) {
-        return m.name;
-    }
-    
-    /**
-     * Gets the password from a new user message.
-     * @param m client message 
-     * @return password
-     */
-    public static String getNewUserMessagePassword(Message m) {
-        return m.message;
-    }   
     
     //Messages:
     

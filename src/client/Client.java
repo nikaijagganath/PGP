@@ -2,7 +2,6 @@ package client;
 
 //Project Imports:
 import protocol.*;
-import constants.*;
 
 //Java Imports:
 import java.io.*;
@@ -129,32 +128,6 @@ public class Client {
             }
             return ServerProtocol.isSuccessResponse(response);
         }
-    }
-    
-    /**
-     * Check formatting and if correct send new user details to server and then
-     * checks server response for successful/ failed add.
-     * @param userName user name to add
-     * @param password linked password
-     * @return 0 for success, 1 for wrong symbols or space and 2 for already exists
-     * @throws IOException
-     * @throws ClassNotFoundException 
-     */
-    public int addUser(String userName, String password) throws IOException, ClassNotFoundException {
-        //Incorrecxt format:
-        if (userName.contains(" ") || userName.contains("@") || userName.contains("#")) {
-            return Constants.SYMBOL_NEW_USER_ERR;
-        }
-        
-        //Correct format:
-        Message msg= ClientProtocol.createNewUserMessage(userName, password);   
-        sendMessage(msg);   //ask server to add new user
-        
-        Message response= (Message) reader.readObject();   //check for server response
-        if (!ServerProtocol.isSuccessResponse(response)) {
-            return Constants.EXISTS_NEW_USER_ERR;    //failed add
-        }
-        return Constants.SUCCES_NEW_USER;    //successful add
     }
     
     /**
