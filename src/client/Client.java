@@ -113,21 +113,15 @@ public class Client {
      * @throws ClassNotFoundException 
      */
     public boolean login(String userName, String password) throws IOException, ClassNotFoundException  {
-        //Incorrect formatting:    
-        if(userName.contains(" ") || userName.contains("@") || userName.contains("#")) {
-            return false;
-        }
-        //Correct formatting:
-        else {
-            Message msg= ClientProtocol.createLoginMessage(userName, password);
-            sendMessage(msg);   //tell server you want to log in
 
-            Message response= (Message) reader.readObject();   //check for whether correctly logged in at server
-            if (ServerProtocol.isSuccessResponse(response)) {   //set username
-                this.userName= userName;
-            }
-            return ServerProtocol.isSuccessResponse(response);
+        Message msg= ClientProtocol.createLoginMessage(userName, password);
+        sendMessage(msg);   //tell server you want to log in
+
+        Message response= (Message) reader.readObject();   //check for whether correctly logged in at server
+        if (ServerProtocol.isSuccessResponse(response)) {   //set username
+            this.userName= userName;
         }
+        return ServerProtocol.isSuccessResponse(response);
     }
     
     /**
