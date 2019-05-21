@@ -42,8 +42,11 @@ public class ClientProtocol {
      * @param password password to login with
      * @return message to send to server
      */
-    public static Message createLoginMessage(String userName, String password) {
+    /*public static Message createLoginMessage(String userName, String password) {
         return new Message(LOGIN_CMD, userName, null, password);
+    }*/
+    public static Message createLoginMessage(String userName, byte[] password, byte[] sharedKey) {
+        return new Message(LOGIN_CMD, userName, null, password, sharedKey);
     }
     
     /**
@@ -92,8 +95,15 @@ public class ClientProtocol {
      * @param m client message 
      * @return password
      */
-    public static String getLoginMessagePassword(Message m) {
+    /*public static String getLoginMessagePassword(Message m) {
         return m.message;
+    }*/
+    public static byte[] getLoginMessagePassword(Message m) {
+        return m.mess;
+    }
+    
+    public static byte[] getSharedKey(Message m) {
+        return m.sharedKey;
     }
     
     //Messages:

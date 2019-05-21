@@ -43,11 +43,11 @@ public class Symmetric {
      * @return encrypted bytes of message.
      * @throws Exception 
      */
-    public byte[] encrypt(Key key, String message) throws Exception {
+    public byte[] encrypt(Key key, byte [] message) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(INITIALIZATION_VECTOR.getBytes()));
         
-        encryptedBytes = cipher.doFinal(message.getBytes());
+        encryptedBytes = cipher.doFinal(message);
         encryptedText = getHexString(encryptedBytes);
         
         return encryptedBytes;

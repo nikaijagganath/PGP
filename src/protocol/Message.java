@@ -35,6 +35,10 @@ public class Message implements Serializable{
     
     byte[] enc;
     
+    byte[] mess;
+    
+    byte[] sharedKey;
+    
     /**
      * Creates a message for sending between sockets.
      * @param cmd command
@@ -56,6 +60,14 @@ public class Message implements Serializable{
         this.message = message;
         this.key = key;
         this.enc = enc;
+    }
+    
+    public Message(String cmd, String name, String type, byte[] mess, byte[] sharedKey) {
+        this.cmd = cmd;
+        this.name = name;
+        this.type = type;
+        this.mess = mess;
+        this.sharedKey = sharedKey;
     }
     
     public void setTest(Key key, byte[] enc){

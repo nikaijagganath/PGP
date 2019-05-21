@@ -110,8 +110,6 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
             }
         });
 
-        lblBackground.setIcon(new javax.swing.ImageIcon(getClass().getResource("/client/ui/back.jpeg"))); // NOI18N
-
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(

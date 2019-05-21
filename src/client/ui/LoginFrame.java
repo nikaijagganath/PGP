@@ -99,8 +99,6 @@ public class LoginFrame extends javax.swing.JFrame {
             }
         });
         getContentPane().add(login_btn, new org.netbeans.lib.awtextra.AbsoluteConstraints(382, 534, 101, -1));
-
-        lblBackground.setIcon(new javax.swing.ImageIcon(getClass().getResource("/client/ui/back.jpeg"))); // NOI18N
         getContentPane().add(lblBackground, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 570, 650));
 
         pack();

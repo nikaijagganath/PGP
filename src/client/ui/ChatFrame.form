@@ -141,11 +141,6 @@
       </Events>
     </Component>
     <Component class="javax.swing.JLabel" name="lblBackground">
-      <Properties>
-        <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.editors2.IconEditor">
-          <Image iconType="3" name="/client/ui/back.jpeg"/>
-        </Property>
-      </Properties>
     </Component>
   </SubComponents>
 </Form>

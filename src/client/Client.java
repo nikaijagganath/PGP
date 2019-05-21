@@ -9,6 +9,7 @@ import java.net.*;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.SignatureException;
 import java.util.*;
 import javax.crypto.NoSuchPaddingException;
@@ -68,10 +69,10 @@ public class Client {
     /**
      * Util object
      */
-    Utils utils = new Utils();;
+    Utils utils = new Utils();
     
-    Symmetric sym = new Symmetric();
-    Asymmetric asym = new Asymmetric();
+    Symmetric sym ;
+    Asymmetric asym ;
 
     
     //Constructor:
@@ -84,6 +85,9 @@ public class Client {
      * @throws IOException 
      */
     public Client(String serverName, int portNo) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException {
+        sym = new Symmetric();
+        asym = new Asymmetric();
+
         //Connect to server:
         this.serverName= serverName;
         this.portNo= portNo;
@@ -133,9 +137,26 @@ public class Client {
      */
     public boolean login(String userName, String password) throws IOException, ClassNotFoundException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception  {
 
-        Message msg= ClientProtocol.createLoginMessage(userName, password);
-        sendMessage(msg);   //tell server you want to log in
-
+        //Message msg= ClientProtocol.createLoginMessage(userName, password);
+        //BASE64Encoder encoder = new BASE64Encoder();
+        //tell server you want to log in
+        //byte[] hash = asym.signMessage(password, "client.keys");
+        String hash = asym.ApplySHA256(password);
+        byte[] encryptedHash = asym.encrypt(asym.getKeys("client.keys")[1], hash.getBytes());
+        System.out.println("encryptedHash on client side = "+ Base64.getEncoder().encodeToString(encryptedHash));
+        byte[] concat = utils.concatenate(password.getBytes(), encryptedHash);
+        System.out.println("concat msg + encrypted hash on client side = "+ Base64.getEncoder().encodeToString(concat));
+        byte[] zip = utils.compress(concat);
+        System.out.println("compressed message on client side = "+ Base64.getEncoder().encodeToString(zip));
+        Key sKey = sym.buildKey();
+        System.out.println("shared key on client side = "+Base64.getEncoder().encodeToString(sKey.getEncoded()));
+        byte[] cipher1 = sym.encrypt(sKey, zip);
+        Key server = asym.getKeys("server.keys")[0];
+        byte[] cipher2 = asym.encrypt(server, sKey.getEncoded());
+        //asym.getHexString(sKey.getEncoded()).getBytes()
+        Message msg= ClientProtocol.createLoginMessage(userName, cipher1, cipher2 );
+        sendMessage(msg); 
+        
         Message response= (Message) reader.readObject();   //check for whether correctly logged in at server
         if (ServerProtocol.isSuccessResponse(response)) {   //set username
             this.userName= userName;
@@ -200,7 +221,7 @@ public class Client {
         //Key sKey = sym.buildKey();
         //m.setTest(sKey, sym.encrypt(sKey, message));
         //m.setTest(null, asym.encrypt(utils.getPublicKey("server.keys"), message));
-        m.setTest(null, utils.compress(message.getBytes()));
+        //m.setTest(null, utils.compress(message.getBytes()));
         writer.writeObject(m);
         writer.flush();
     }

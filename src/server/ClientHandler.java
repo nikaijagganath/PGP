@@ -7,9 +7,16 @@ import protocol.*;
 import java.io.*;
 import java.util.logging.*;
 import java.net.*;
+import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import security.*;
 
 /**
@@ -47,8 +54,8 @@ public class ClientHandler extends Thread {
      */
     private String userName;
 
-    private Asymmetric asym = new Asymmetric();
-    private Symmetric sym = new Symmetric();
+    private Asymmetric asym;
+    private Symmetric sym;
     Utils utils = new Utils();
 
     //Constructor:
@@ -59,6 +66,9 @@ public class ClientHandler extends Thread {
      * @param clientSocket socket on client side linking server to client
      */
     public ClientHandler(Server server, Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException {
+        asym = new Asymmetric();
+        sym = new Symmetric();
+        asym.getKeys("server.keys");
         this.server = server;
         this.clientSocket = clientSocket;
         userName = null;
@@ -88,7 +98,7 @@ public class ClientHandler extends Thread {
             Message m = (Message) reader.readObject();   //MESSAGE
             String command;
             //test(m);
-            testCompression(ClientProtocol.getEncryp(m));
+            //testCompression(ClientProtocol.getEncryp(m));
             ONLINE:
             while (m!= null){
                 command = ClientProtocol.getMessageCommand(m);
@@ -129,9 +139,55 @@ public class ClientHandler extends Thread {
      * If details are incorrect the login is denied and user is informed.
      * @param m client message
      */
-    private void processLogin(Message m) throws IOException {
+    private void processLogin(Message m) throws IOException, Exception {
         String name= ClientProtocol.getLoginMessageUsername(m);
-        String password= ClientProtocol.getLoginMessagePassword(m);
+        byte[] encryptedPassword= ClientProtocol.getLoginMessagePassword(m);
+        byte[] encryptedSharedKey = ClientProtocol.getSharedKey(m);
+        //Decrypt Password and SharedKey
+        byte[] sharedKeyBytes= asym.decrypt(asym.getPrivateKey("WHATEVER"), encryptedSharedKey);
+        Key sharedKey = new SecretKeySpec(sharedKeyBytes, 0, sharedKeyBytes.length, "AES");
+        sym.setKey(sharedKey);
+        System.out.println("shared key on server side: "+Base64.getEncoder().encodeToString(sharedKey.getEncoded()));
+        
+        //Using shared key to decrypt message
+        byte[] messageBytes = sym.decrypt(sharedKey, encryptedPassword);
+        System.out.println("message bytes  on server side = "+ Base64.getEncoder().encodeToString(messageBytes));
+        
+        //Decompress
+        byte[] decompressedMessage = utils.decompress(messageBytes);
+        System.out.println("decompressed message on server side = "+ Base64.getEncoder().encodeToString(decompressedMessage));
+       
+        
+        //Deconcatenate 
+        List<byte[]> password_hash = new ArrayList<>();
+        password_hash = utils.deconcatenate(decompressedMessage);
+        byte[] encryptedHash = password_hash.get(0);
+        byte[] passwordBytes = password_hash.get(1);
+        
+        String s = Base64.getEncoder().encodeToString(password_hash.get(0));
+        String t = new String (password_hash.get(1));
+        System.out.println("encrypted hash on server side =" + s);
+        System.out.println("plain message on server side =" + t);
+        
+        
+        String password = new String (passwordBytes);
+        
+        //System.out.println("password "+new String(password,"UTF-8"));
+        System.out.println("hashed password on server side = " + asym.ApplySHA256(password));
+        
+        
+        // Need additional asymmetric object containing client keys --> FIX to get piublic keys from public.keys file
+        //Compare hashes
+        Asymmetric asymc = new Asymmetric();
+        Key[] keysc = asymc.getKeys("client.keys");
+        
+        byte[] sentHash = asym.decrypt(keysc[0], encryptedHash);
+        System.out.println("hash sent from client on server side = "+ Base64.getEncoder().encodeToString(sentHash) );
+        boolean compare = asym.compare(password, new String(sentHash));
+        System.out.println("compare hashes on server side = " + compare);
+
+
+        
         System.out.println("User attempted login: " + name + " " + password);
         
         if (server.checkLogin(name, password)) {
@@ -144,7 +200,7 @@ public class ClientHandler extends Thread {
         else {  //incorrect login details
             Message msg= ServerProtocol.createResponseMessage(ClientProtocol.LOGIN_CMD, ServerProtocol.FAIL_MSG, "Incorrect username or password.");   //MESSAGE
             writer.writeObject(msg);    //MESSAGE
-            System.err.println("ERROR: Login Failed. " + name + " " + password);
+            System.err.println("ERROR: Login Failed. " + name + " " + new String(password));
         }
     }
     
@@ -211,18 +267,5 @@ public class ClientHandler extends Thread {
     public String getUserName() {
         return userName;
     }
-    
-    private void testHash(Message m, byte[]received){
-        utils.compareHash(m, received);
-    }
-    private void test(Message m) throws Exception{
-        Key key = utils.getPrivateKey("server.keys");
-        byte[] cipher = ClientProtocol.getEncryp(m);
-        asym.decrypt(key, cipher);
-        System.out.println("Decrypted" + asym.getDecryptedText());
-    }
-    
-    private void testCompression(byte[] message){
-        System.out.println(new String(utils.decompress(message)));
-    }
+
 }
