@@ -6,8 +6,12 @@ import constants.*;
 //Java Imports:
 import java.io.*;
 import java.net.*;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.crypto.NoSuchPaddingException;
 
 /**
  * Server used to connect clients to one another.
@@ -58,13 +62,17 @@ public class Server {
     /**
      * Opens server socket on server's port number and continuously accepts clients, creating new client handler threads and adding them to the handler list.
      */
-    public void runServer() {
+    public void runServer() throws NoSuchAlgorithmException {
         try {
             while(true) {
                 System.out.println("Connecting to client...");
                 Socket clientSocket= serverSocket.accept();
                 System.out.println("Accepted connection: client " + clientSocket);
-                addHandler(clientSocket);
+                try {
+                    addHandler(clientSocket);
+                } catch (NoSuchPaddingException ex) {
+                    Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                }
             }
         } 
         catch (IOException ex) {
@@ -80,7 +88,7 @@ public class Server {
      * Creates new client handler thread connecting the specified client socket with the server and adds handler to the handler list.
      * @param clientSocket client socket on the chat client 
      */
-    public void addHandler(Socket clientSocket) {
+    public void addHandler(Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException {
         ClientHandler handler= new ClientHandler(this, clientSocket);
         handlerList.add(handler);
         handler.start();

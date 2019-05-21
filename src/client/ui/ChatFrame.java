@@ -7,6 +7,8 @@ import client.*;
 //Java Imports:
 import java.awt.event.*;
 import java.io.*;
+import java.security.InvalidKeyException;
+import java.security.SignatureException;
 import java.util.logging.*;
 import javax.swing.*;
         
@@ -170,7 +172,13 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
         else{
             try {
                 chat_area.append(String.format("%-15s%10s%n", "me > ", message));//Display message in text area.
-                handleDirectTextMessageGUI(message);
+                try {
+                    handleDirectTextMessageGUI(message);
+                } catch (UnsupportedEncodingException ex) {
+                    Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (SignatureException ex) {
+                    Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 message_txt.setText("");
                 //message= message.replaceAll("(.{0,50})\\b", "$1\n").trim();    //split on line length of 68 chars
             } catch (IOException ex) {
@@ -216,9 +224,13 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
      * @param message Text body of message to be sent.
      * @throws java.io.IOException
      */
-    public void handleDirectTextMessageGUI(String message) throws IOException {
+    public void handleDirectTextMessageGUI(String message) throws IOException, UnsupportedEncodingException, SignatureException {
         Message m = ClientProtocol.createDirectTextMessage(name, message);  //MESSAGE
-        client.sendMessage(m);
+        try {
+            client.sendMessage(m);
+        } catch (Exception ex) {
+            
+        }
     }
     
     
@@ -247,7 +259,12 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
      * Tells server that user is logging off.
      */
     private void handleLogoff() throws IOException {
+        try{
             client.logoff();
+        }
+        catch(Exception e){
+            
+        }
     }
 }
 

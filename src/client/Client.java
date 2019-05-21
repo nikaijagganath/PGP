@@ -2,12 +2,17 @@ package client;
 
 //Project Imports:
 import protocol.*;
-
+import security.*;
 //Java Imports:
 import java.io.*;
 import java.net.*;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
 import java.util.*;
-
+import javax.crypto.NoSuchPaddingException;
+import security.*;
 public class Client {
     
     //Instance Variables:
@@ -60,6 +65,14 @@ public class Client {
      */
     ArrayList<ServerResponseListener> serverResponseListeners; 
     
+    /**
+     * Util object
+     */
+    Utils utils = new Utils();;
+    
+    Symmetric sym = new Symmetric();
+    Asymmetric asym = new Asymmetric();
+
     
     //Constructor:
     
@@ -70,7 +83,7 @@ public class Client {
      * @param portNo the port number on which server is listening
      * @throws IOException 
      */
-    public Client(String serverName, int portNo) throws IOException {
+    public Client(String serverName, int portNo) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException {
         //Connect to server:
         this.serverName= serverName;
         this.portNo= portNo;
@@ -86,7 +99,13 @@ public class Client {
         //Create listener lists:
         messageListeners = new ArrayList<>();
         serverResponseListeners = new ArrayList<>();
-
+        
+        //Create utils object
+        if(!utils.checkFile("client.keys")){
+            utils.writeToFile("client");
+            
+        
+        }
     }
 
     
@@ -112,7 +131,7 @@ public class Client {
      * @throws IOException
      * @throws ClassNotFoundException 
      */
-    public boolean login(String userName, String password) throws IOException, ClassNotFoundException  {
+    public boolean login(String userName, String password) throws IOException, ClassNotFoundException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception  {
 
         Message msg= ClientProtocol.createLoginMessage(userName, password);
         sendMessage(msg);   //tell server you want to log in
@@ -128,7 +147,7 @@ public class Client {
      * Log off client, closing all streams and sockets.
      * @throws IOException 
      */
-    public void logoff() throws IOException {
+    public void logoff() throws IOException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception {
         Message m= ClientProtocol.createLogoffMessage();   //tell server that client is logging off
         sendMessage(m);
         readerThreadList.clear();
@@ -176,7 +195,12 @@ public class Client {
      * @param m message to send
      * @throws IOException 
      */
-    public void sendMessage(Message m) throws IOException {
+    public void sendMessage(Message m) throws IOException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception {
+        String message = ClientProtocol.getMessageMessage(m);
+        //Key sKey = sym.buildKey();
+        //m.setTest(sKey, sym.encrypt(sKey, message));
+        //m.setTest(null, asym.encrypt(utils.getPublicKey("server.keys"), message));
+        m.setTest(null, utils.compress(message.getBytes()));
         writer.writeObject(m);
         writer.flush();
     }

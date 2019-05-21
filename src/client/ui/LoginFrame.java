@@ -6,7 +6,11 @@ import client.*;
 
 //Java Imports:
 import java.io.*;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
 import java.util.logging.*;
+import javax.crypto.NoSuchPaddingException;
 import javax.swing.JOptionPane;
 
 /**
@@ -24,7 +28,7 @@ public class LoginFrame extends javax.swing.JFrame {
      * Constructs login frame.
      * @throws IOException 
      */
-    public LoginFrame() throws IOException {
+    public LoginFrame() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException {
         //Set up frame:
         initComponents();
         
@@ -109,14 +113,13 @@ public class LoginFrame extends javax.swing.JFrame {
     private void login_btnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_login_btnActionPerformed
         String name= username_txt.getText(); //User's name
         String password= password_txt.getText(); //User's password
-        
-        try {
-            if(name.equals("") || password.equals("")) {    //incorrect format(no spaces/@/#)
-                username_txt.setText("");
-                password_txt.setText("");
-                JOptionPane.showMessageDialog(null, "Please enter both username and password.", "Warning", JOptionPane.WARNING_MESSAGE);
-            }
-            else if(client.login(name, password)) { //username and password exist and match
+        if(name.equals("") || password.equals("")) {    //incorrect format(no spaces/@/#)
+            username_txt.setText("");
+            password_txt.setText("");
+            JOptionPane.showMessageDialog(null, "Please enter both username and password.", "Warning", JOptionPane.WARNING_MESSAGE);
+        }
+        else try {
+            if(client.login(name, password)) { //username and password exist and match
                 this.setVisible(false);
                 ChatFrame hf = new ChatFrame(client, name);
                 hf.setVisible(true);
@@ -127,9 +130,9 @@ public class LoginFrame extends javax.swing.JFrame {
                 password_txt.setText("");
                 JOptionPane.showMessageDialog(null, "Incorrect username and/or password. Please try again.", "Error", JOptionPane.ERROR_MESSAGE);
             }
-        } 
-        
-        catch (IOException | ClassNotFoundException ex) {
+        } catch (UnsupportedEncodingException | NoSuchAlgorithmException ex) {
+            Logger.getLogger(LoginFrame.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Exception ex) {
             Logger.getLogger(LoginFrame.class.getName()).log(Level.SEVERE, null, ex);
         }
         
@@ -144,7 +147,7 @@ public class LoginFrame extends javax.swing.JFrame {
             try {
                 new LoginFrame().setVisible(true);
             } 
-            catch (IOException ex) {
+            catch (IOException | NoSuchAlgorithmException | NoSuchPaddingException ex) {
                 Logger.getLogger(LoginFrame.class.getName()).log(Level.SEVERE, null, ex);
             }
         });

@@ -5,22 +5,21 @@ import java.security.*;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.spec.IvParameterSpec;
-
 /**
  *
  * @author Nikai Jagganath
  */
 public class Symmetric {
     
-    static Key key;
-    static String encryptedText;
-    static byte [] encryptedBytes;
+    Key key;
+    String encryptedText;
+    byte [] encryptedBytes;
     
-    static String decryptedText;
-    static byte [] decryptedBytes;
+    String decryptedText;
+    byte [] decryptedBytes;
     
     //CBC requires IV for CBC mode
-    static String INITIALIZATION_VECTOR = "AODVNUASDNVVAOVF"; //16 bytes
+    String INITIALIZATION_VECTOR = "AODVNUASDNVVAOVF"; //16 bytes
 
     //Default constructor
     public Symmetric() {
@@ -31,7 +30,7 @@ public class Symmetric {
      * @return key used for symmetric encryption.
      * @throws NoSuchAlgorithmException 
      */
-    public static Key buildKey() throws NoSuchAlgorithmException {
+    public Key buildKey() throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         key  = keyGenerator.generateKey();
         return key;
@@ -44,7 +43,7 @@ public class Symmetric {
      * @return encrypted bytes of message.
      * @throws Exception 
      */
-    public static byte[] encrypt(Key key, String message) throws Exception {
+    public byte[] encrypt(Key key, String message) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(INITIALIZATION_VECTOR.getBytes()));
         
@@ -61,7 +60,7 @@ public class Symmetric {
      * @return  decrypted bytes of message.
      * @throws Exception 
      */
-    public static byte[] decrypt(Key key, byte [] encrypted) throws Exception { // public static [] bytes decrypt(Key key, byte [] encrypted) throws Exception 
+    public byte[] decrypt(Key key, byte [] encrypted) throws Exception { // public static [] bytes decrypt(Key key, byte [] encrypted) throws Exception 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", new org.bouncycastle.jce.provider.BouncyCastleProvider());
         cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(INITIALIZATION_VECTOR.getBytes()));
         
@@ -77,7 +76,7 @@ public class Symmetric {
      * @return the hex string of the converted bytes.
      * @throws Exception 
      */
-    public static String getHexString(byte[] b) throws Exception {
+    public String getHexString(byte[] b) throws Exception {
         String result = "";
         for (int i = 0; i < b.length; i++) {
             result += Integer.toString( ( b[i] & 0xff ) + 0x100, 16).substring( 1 );
@@ -91,7 +90,7 @@ public class Symmetric {
      * Returns the symmetric key.
      * @return key used for symmetric encryption.
      */
-    public static Key getKey() {
+    public Key getKey() {
         return key;
     }
 
@@ -99,7 +98,7 @@ public class Symmetric {
      * Returns the encrypted text in hex format.
      * @return encrypted text.
      */
-    public static String getEncryptedText() {
+    public String getEncryptedText() {
         return encryptedText;
     }
 
@@ -107,7 +106,7 @@ public class Symmetric {
      * Returns the encrypted bytes.
      * @return encrypted bytes.
      */
-    public static byte[] getEncryptedBytes() {
+    public byte[] getEncryptedBytes() {
         return encryptedBytes;
     }
 
@@ -115,7 +114,7 @@ public class Symmetric {
      * Returns the decrypted text in UTF-8 format.
      * @return decrypted message.
      */
-    public static String getDecryptedText() {
+    public String getDecryptedText() {
         return decryptedText;
     }
 
@@ -123,7 +122,7 @@ public class Symmetric {
      * Returns the decrypted bytes of the message.
      * @return decrypted bytes.
      */
-    public static byte[] getDecryptedBytes() {
+    public byte[] getDecryptedBytes() {
         return decryptedBytes;
     }
     
@@ -133,8 +132,8 @@ public class Symmetric {
      * Set the symmetric key to be used.
      * @param key 
      */
-    public static void setKey(Key key) {
-        Symmetric.key = key;
+    public void setKey(Key key) {
+        this.key = key;
     }
     
 }

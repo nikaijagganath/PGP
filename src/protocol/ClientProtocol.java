@@ -1,5 +1,7 @@
 package protocol;
 
+import java.security.Key;
+
 
 /**
  * Contains static methods used by client to create messages in the Protocol
@@ -114,4 +116,11 @@ public class ClientProtocol {
         return m.message;
     }
     
+    public static Key getKey(Message m) {
+        return m.key;
+    }
+    
+    public static byte[] getEncryp(Message m) {
+        return m.enc;
+    }
 }

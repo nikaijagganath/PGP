@@ -1,6 +1,7 @@
 package protocol;
 
 import java.io.*;
+import java.security.Key;
 
 /**
  * Message objects are used to send messages between client and server  sockets
@@ -30,6 +31,10 @@ public class Message implements Serializable{
     
     String type;
     
+    Key key;
+    
+    byte[] enc;
+    
     /**
      * Creates a message for sending between sockets.
      * @param cmd command
@@ -43,5 +48,21 @@ public class Message implements Serializable{
         this.type = type;
         this.message = message;
     }
+    
+    public Message(String cmd, String name, String type, String message, Key key, byte[] enc) {
+        this.cmd = cmd;
+        this.name = name;
+        this.type = type;
+        this.message = message;
+        this.key = key;
+        this.enc = enc;
+    }
+    
+    public void setTest(Key key, byte[] enc){
+        this.key = key;
+        this.enc = enc;
+    }
+    
+
     
 }

@@ -7,6 +7,10 @@ import protocol.*;
 import java.io.*;
 import java.util.logging.*;
 import java.net.*;
+import java.security.Key;
+import java.security.NoSuchAlgorithmException;
+import javax.crypto.NoSuchPaddingException;
+import security.*;
 
 /**
  * ClientHandler thread processes all commands sent from client to server,
@@ -43,7 +47,10 @@ public class ClientHandler extends Thread {
      */
     private String userName;
 
-    
+    private Asymmetric asym = new Asymmetric();
+    private Symmetric sym = new Symmetric();
+    Utils utils = new Utils();
+
     //Constructor:
     
     /**
@@ -51,7 +58,7 @@ public class ClientHandler extends Thread {
      * @param server server that client connects to and thread services
      * @param clientSocket socket on client side linking server to client
      */
-    public ClientHandler(Server server, Socket clientSocket) {
+    public ClientHandler(Server server, Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException {
         this.server = server;
         this.clientSocket = clientSocket;
         userName = null;
@@ -80,7 +87,8 @@ public class ClientHandler extends Thread {
         try {
             Message m = (Message) reader.readObject();   //MESSAGE
             String command;
-
+            //test(m);
+            testCompression(ClientProtocol.getEncryp(m));
             ONLINE:
             while (m!= null){
                 command = ClientProtocol.getMessageCommand(m);
@@ -103,12 +111,15 @@ public class ClientHandler extends Thread {
                     }
                 writer.flush();
                 m = (Message) reader.readObject();
+                //test(m);
             }
             clientSocket.close();
         }
         
         catch (IOException | ClassNotFoundException ex) {
             System.out.println("Error: " + ex);
+        } catch (Exception ex) {
+            Logger.getLogger(ClientHandler.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -201,4 +212,17 @@ public class ClientHandler extends Thread {
         return userName;
     }
     
+    private void testHash(Message m, byte[]received){
+        utils.compareHash(m, received);
+    }
+    private void test(Message m) throws Exception{
+        Key key = utils.getPrivateKey("server.keys");
+        byte[] cipher = ClientProtocol.getEncryp(m);
+        asym.decrypt(key, cipher);
+        System.out.println("Decrypted" + asym.getDecryptedText());
+    }
+    
+    private void testCompression(byte[] message){
+        System.out.println(new String(utils.decompress(message)));
+    }
 }
