@@ -46,7 +46,7 @@ public class ClientProtocol {
         return new Message(LOGIN_CMD, userName, null, password);
     }*/
     public static Message createLoginMessage(String userName, byte[] password, byte[] sharedKey) {
-        return new Message(LOGIN_CMD, userName, null, password, sharedKey);
+        return new Message(LOGIN_CMD, userName, password, sharedKey);
     }
     
     /**
@@ -54,7 +54,7 @@ public class ClientProtocol {
      * @return message to send to server
      */
     public static Message createLogoffMessage() {
-        return new Message(LOGOFF_CMD, null, null, null);
+        return new Message(LOGOFF_CMD, "", "", "");
     }
 
     
@@ -65,7 +65,7 @@ public class ClientProtocol {
      * @return 
      */
     public static Message createDirectTextMessage(String receiver, byte [] encryptedMessage) {
-        return new Message(MESSAGE_CMD, receiver, null, encryptedMessage, null);
+        return new Message(MESSAGE_CMD, receiver, encryptedMessage, null);
     }
     
     

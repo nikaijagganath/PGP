@@ -49,10 +49,16 @@ public class Message implements Serializable{
         this.message = message;
     }
     
-    public Message(String cmd, String name, String type, byte[] encryptedMessageBytes, byte[] encryptedSharedKey) {
+    /**
+     * Creates the encrypted message to be sent.
+     * @param cmd
+     * @param name
+     * @param encryptedMessageBytes
+     * @param encryptedSharedKey 
+     */
+    public Message(String cmd, String name, byte[] encryptedMessageBytes, byte[] encryptedSharedKey) {
         this.cmd = cmd;
         this.name = name;
-        this.type = type;
         this.encryptedMessageBytes = encryptedMessageBytes;
         this.encryptedSharedKey = encryptedSharedKey;
     }

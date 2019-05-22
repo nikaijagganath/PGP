@@ -82,16 +82,11 @@ public class ServerProtocol {
     
     /**
      * Creates message for sending direct text message.
-     * @param messageBody text to send
+     * @param encryptedMessage text to send
      * @return server message
      */
-    /*
-    public static Message createDirectTextMessage(String messageBody) {
-        return new Message(MESSAGE_CMD,  null, null, messageBody);
-    }*/
-    
     public static Message createDirectTextMessage(byte [] encryptedMessage) {
-        return new Message(MESSAGE_CMD,  null, null, encryptedMessage, null);
+        return new Message(MESSAGE_CMD,  null, encryptedMessage, null);
     }
 
     
