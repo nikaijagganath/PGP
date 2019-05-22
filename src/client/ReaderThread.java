@@ -6,6 +6,13 @@ import protocol.*;
 //Java Imports:
 import java.io.*;
 import java.net.SocketException;
+import java.security.Key;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import security.Utils;
 
 /**
  * Thread which processes incoming server messages for a client.
@@ -37,8 +44,6 @@ public class ReaderThread extends Thread {
         this.client= client;
         reader= client.getReader();
     }
-    
-    
     
     //Run Method:
     
@@ -75,22 +80,74 @@ public class ReaderThread extends Thread {
         } 
         catch (ClassNotFoundException | IOException ex){
             System.out.println("Exception: " + ex);
+        } catch (Exception ex) {
+            Logger.getLogger(ReaderThread.class.getName()).log(Level.SEVERE, null, ex);
         }
     } 
     
     //Processing methods used in run:
     
     /**
-     * Processes text message.
+     * Processes and decrypts the text message sent from the server.
      * @param m message received from server
      * @throws IOException 
      */
-    public void processMessage(Message m) throws IOException {
-        //String sender= ServerProtocol.getDirectMessageSender(m);
-        String message= ServerProtocol.getTextMessageMessage(m);
-        client.messageListeners.forEach((listener) -> {
+    public void processMessage(Message m) throws IOException, Exception {
+        //String message = ServerProtocol.getTextMessageMessage(m);
+        
+        //PGP PROCEDURE ON CLIENT SIDE
+        System.out.println("\n--START: PGP PROCEDURE ON CLIENT--\n");
+        
+        //Get the encrypted message
+        byte[] encryptedMessage = ServerProtocol.getEncryptedMessage(m);
+        System.out.println("Encrypted message on client side: "+Base64.getEncoder().encodeToString(encryptedMessage));
+
+        //Use the obtained shared key to decrypt the compressed message
+        byte[] compressedMessageBytes = client.getSymmetric().decrypt(client.getSymmetric().getKey(), encryptedMessage);
+        System.out.println("Compressed message on client side: "+ Base64.getEncoder().encodeToString(compressedMessageBytes));
+
+        //Decompress the message
+        byte[] decompressedMessage = client.getUtils().decompress(compressedMessageBytes);
+        System.out.println("Decompressed message on client side: "+ Base64.getEncoder().encodeToString(decompressedMessage));
+
+        //Deconcatenate the message into the encrypted hash and the message text (in this case the password)
+        List<byte[]> password_hash = new ArrayList<>();
+        password_hash = client.getUtils().deconcatenate(decompressedMessage);
+        byte[] encryptedHash = password_hash.get(0);
+        byte[] messageBytes = password_hash.get(1);
+
+        System.out.println("Encrypted hash on client side: " + Base64.getEncoder().encodeToString(password_hash.get(0)));
+        System.out.println("Message text on client side: " + new String (password_hash.get(1)) );
+
+        //Convert the bytes of the message text (password) into a String
+        String message = new String (messageBytes);
+
+        //Get the server's public key which is the  first key stored in the public.keys file
+        Key clientPublic = Utils.getKeys("public.keys")[0];
+
+        //Decrypt the hash sent from the client using the client's public key
+        byte[] sentHash = client.getAsymmetric().decrypt(clientPublic, encryptedHash);
+        System.out.println("Hash of message sent from client on client side: "+ new String(sentHash));
+
+        //Hash the message on the server side
+        System.out.println("Hash of message on client side: " + client.getAsymmetric().ApplySHA256(message));
+
+        //Compare the two hashes obtained
+        boolean compare = client.getAsymmetric().compare(message, new String(sentHash));
+        System.out.println("Compare hashes on client side: " + compare);
+
+        System.out.println("\n--END: PGP PROCEDURE ON CLIENT--\n");
+        
+        if (compare){
+            client.messageListeners.forEach((listener) -> {
             listener.onDirectMessage("server", message);
-        });        
+            });
+        }
+        else{
+            client.messageListeners.forEach((listener) -> {
+                listener.onDirectMessage("server", "authentication error occured ");
+            });
+        }        
     }
     
     /**

@@ -33,15 +33,13 @@ public class Asymmetric {
     Key[] keys;
     
     /**
-     * The encrypted bytes and corresponding String
+     * The encrypted bytes
      */
-    String encryptedText;
     byte [] encryptedBytes;
     
     /**
-     * The decrypted bytes and corresponding String
+     * The decrypted bytes
      */
-    String decryptedText;
     byte [] decryptedBytes;
     
     
@@ -127,7 +125,7 @@ public class Asymmetric {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
         encryptedBytes = cipher.doFinal(message);
-        encryptedText = Base64.getEncoder().encodeToString(encryptedBytes);
+        
         return encryptedBytes;
     }
     
@@ -142,7 +140,6 @@ public class Asymmetric {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", new org.bouncycastle.jce.provider.BouncyCastleProvider());
         cipher.init(Cipher.DECRYPT_MODE, key);
         decryptedBytes = cipher.doFinal(encrypted);
-        decryptedText = new String (cipher.doFinal(encrypted), "UTF-8");
         
         return decryptedBytes;
     }
@@ -164,14 +161,6 @@ public class Asymmetric {
     public PrivateKey getPrivateKey(){
         return (PrivateKey) keys[1];
     }
-    
-    /**
-     * Returns the encrypted text in hex format.
-     * @return encrypted text.
-     */
-    public String getEncryptedText() {
-        return encryptedText;
-    }
 
     /**
      * Returns the encrypted bytes.
@@ -179,14 +168,6 @@ public class Asymmetric {
      */
     public byte[] getEncryptedBytes() {
         return encryptedBytes;
-    }
-
-    /**
-     * Returns the decrypted text in UTF-8 format.
-     * @return decrypted message.
-     */
-    public String getDecryptedText() {
-        return decryptedText;
     }
 
     /**

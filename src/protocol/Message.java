@@ -31,13 +31,9 @@ public class Message implements Serializable{
     
     String type;
     
-    Key key;
+    byte[] encryptedMessageBytes;
     
-    byte[] enc;
-    
-    byte[] mess;
-    
-    byte[] sharedKey;
+    byte[] encryptedSharedKey;
     
     /**
      * Creates a message for sending between sockets.
@@ -53,28 +49,13 @@ public class Message implements Serializable{
         this.message = message;
     }
     
-    public Message(String cmd, String name, String type, String message, Key key, byte[] enc) {
+    public Message(String cmd, String name, String type, byte[] encryptedMessageBytes, byte[] encryptedSharedKey) {
         this.cmd = cmd;
         this.name = name;
         this.type = type;
-        this.message = message;
-        this.key = key;
-        this.enc = enc;
+        this.encryptedMessageBytes = encryptedMessageBytes;
+        this.encryptedSharedKey = encryptedSharedKey;
     }
-    
-    public Message(String cmd, String name, String type, byte[] mess, byte[] sharedKey) {
-        this.cmd = cmd;
-        this.name = name;
-        this.type = type;
-        this.mess = mess;
-        this.sharedKey = sharedKey;
-    }
-    
-    public void setTest(Key key, byte[] enc){
-        this.key = key;
-        this.enc = enc;
-    }
-    
 
     
 }

@@ -80,16 +80,18 @@ public class ServerProtocol {
         return new Message(RESPONSE_CMD, cmd, type, message);
     }
     
-
-    
     /**
      * Creates message for sending direct text message.
-     * @param sender sender of message
      * @param messageBody text to send
      * @return server message
      */
+    /*
     public static Message createDirectTextMessage(String messageBody) {
         return new Message(MESSAGE_CMD,  null, null, messageBody);
+    }*/
+    
+    public static Message createDirectTextMessage(byte [] encryptedMessage) {
+        return new Message(MESSAGE_CMD,  null, null, encryptedMessage, null);
     }
 
     
@@ -143,7 +145,6 @@ public class ServerProtocol {
         return m.message;
     }
     
-    
     //Response messages:
     
     /**
@@ -189,8 +190,12 @@ public class ServerProtocol {
      * @param m server message
      * @return message body
      */
+    /*
     public static String getTextMessageMessage(Message m) {
         return m.message;
-    }
+    }*/
     
+    public static byte[] getEncryptedMessage(Message m) {
+        return m.encryptedMessageBytes;
+    }
 }

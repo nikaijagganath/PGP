@@ -1,13 +1,12 @@
 package client.ui;
 
 //Project Imports:
-import protocol.*;
 import client.*;
 
 //Java Imports:
 import java.awt.event.*;
 import java.io.*;
-import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.util.logging.*;
 import javax.swing.*;
@@ -79,7 +78,6 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
         lblBackground = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        setPreferredSize(new java.awt.Dimension(570, 650));
 
         chat_area.setEditable(false);
         chat_area.setColumns(20);
@@ -109,6 +107,8 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
                 logout_btnActionPerformed(evt);
             }
         });
+
+        lblBackground.setIcon(new javax.swing.ImageIcon(getClass().getResource("/resources/back.jpeg"))); // NOI18N
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -159,6 +159,11 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
         this.setVisible(false);
     }
     
+    /**
+     * Sends direct text message to server.
+     * @param evt 
+     */
+    
     private void sendtext_btnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sendtext_btnActionPerformed
         
         //Send a text message.
@@ -171,18 +176,17 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
             JOptionPane.showMessageDialog(null, "Messages cannot contain the '^' symbol!", "Warning", JOptionPane.WARNING_MESSAGE);
         }
         else{
+            chat_area.append(String.format("%-15s%10s%n", "me > ", message));//Display message in text area.
             try {
-                chat_area.append(String.format("%-15s%10s%n", "me > ", message));//Display message in text area.
-                try {
-                    handleDirectTextMessageGUI(message);
-                } catch (UnsupportedEncodingException | SignatureException ex) {
-                    Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                message_txt.setText("");
-                //message= message.replaceAll("(.{0,50})\\b", "$1\n").trim();    //split on line length of 68 chars
-            } catch (IOException ex) {
+                client.sendDirectTextMessage(message);
+            } catch (UnsupportedEncodingException | SignatureException ex) {
+                Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (NoSuchAlgorithmException ex) {
+                Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (Exception ex) {
                 Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
             }
+            message_txt.setText("");
         }
 
     }//GEN-LAST:event_sendtext_btnActionPerformed
@@ -216,22 +220,7 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
     private javax.swing.JButton sendtext_btn;
     private javax.swing.JLabel text_lbl;
     // End of variables declaration//GEN-END:variables
-
-    /**
-     * Sends direct text message to server.
-     * @param receiver Client that server must send message to.
-     * @param message Text body of message to be sent.
-     * @throws java.io.IOException
-     */
-    public void handleDirectTextMessageGUI(String message) throws IOException, UnsupportedEncodingException, SignatureException {
-        Message m = ClientProtocol.createDirectTextMessage(name, message);  //MESSAGE
-        try {
-            client.sendMessage(m);
-        } catch (Exception ex) {
-            
-        }
-    }
-    
+  
     
     /**
      * Receives and displays a message in the text area from other clients.
@@ -240,7 +229,6 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
      */
     @Override
     public void onDirectMessage(String sender, String messageBody){
-            //messageBody= messageBody.replaceAll("(.{0,50})\\b", "$1\n").trim();    //split on line length of 68 chars
             chat_area.append(String.format("%-15s%10s%n", sender + " > ", messageBody));//Display message in text area.
     }
 

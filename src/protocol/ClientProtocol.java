@@ -20,17 +20,17 @@ public class ClientProtocol {
     /**
      * Command for log in message.
      */
-    public static final String LOGIN_CMD= "login";
+    public static final String LOGIN_CMD = "login";
     
     /**
      * Command for adding new user.
      */
-    public static final String NEW_USER_CMD= "newuser";
+    public static final String NEW_USER_CMD = "newuser";
     
     /**
      * Command for sending a message.
      */
-    public static final String MESSAGE_CMD= "msg";
+    public static final String MESSAGE_CMD = "msg";
     
     
     
@@ -61,12 +61,14 @@ public class ClientProtocol {
     /**
      * Creates a message to send direct text message information.
      * @param receiver person to send message to
-     * @param messageBody text message to send
+     * @param encryptedMessage
      * @return 
      */
-    public static Message createDirectTextMessage(String receiver, String messageBody) {
-        return new Message(MESSAGE_CMD, receiver, null, messageBody);
+    public static Message createDirectTextMessage(String receiver, byte [] encryptedMessage) {
+        return new Message(MESSAGE_CMD, receiver, null, encryptedMessage, null);
     }
+    
+    
     
     //Receiving message on server from client:
     
@@ -95,15 +97,12 @@ public class ClientProtocol {
      * @param m client message 
      * @return password
      */
-    /*public static String getLoginMessagePassword(Message m) {
-        return m.message;
-    }*/
-    public static byte[] getLoginMessagePassword(Message m) {
-        return m.mess;
+    public static byte[] getEncryptedMessage(Message m) {
+        return m.encryptedMessageBytes;
     }
     
-    public static byte[] getSharedKey(Message m) {
-        return m.sharedKey;
+    public static byte[] getEncryptedSharedKey(Message m) {
+        return m.encryptedSharedKey;
     }
     
     //Messages:
@@ -126,11 +125,4 @@ public class ClientProtocol {
         return m.message;
     }
     
-    public static Key getKey(Message m) {
-        return m.key;
-    }
-    
-    public static byte[] getEncryp(Message m) {
-        return m.enc;
-    }
 }

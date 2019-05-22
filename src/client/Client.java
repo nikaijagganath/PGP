@@ -163,6 +163,9 @@ public class Client {
         //PGP PROCEDURE ON CLIENT SIDE
         System.out.println("\n--START: PGP PROCEDURE ON CLIENT--\n");
         
+        //Password on client side
+        System.out.println("Password on client side: "+password);
+        
         //Create a hash of the message (in this case the password)
         String hash = asym.ApplySHA256(password);
         System.out.println("Hash of message on client side: "+hash);
@@ -182,15 +185,17 @@ public class Client {
         //Create shared key to use for the session with the server
         Key sharedKey = sym.buildKey();
         System.out.println("Shared key created on client side: "+Base64.getEncoder().encodeToString(sharedKey.getEncoded()));
+        
+        //Encrypt the compressed message with the shared key
         byte[] cipher1 = sym.encrypt(sharedKey, zip);
-        System.out.println("Encrypted shared key on client side: "+Base64.getEncoder().encodeToString(cipher1));
+        System.out.println("Encrypted compressed message using shared key on client side: "+Base64.getEncoder().encodeToString(cipher1));
         
         //Get the server's public key which is the first key stored in the public.keys file
         Key serverPublic = Utils.getKeys("public.keys")[0]; 
         
         //Encrypt the shared key with the server's public key to send to the server
         byte[] cipher2 = asym.encrypt(serverPublic, sharedKey.getEncoded());
-        System.out.println("Encrypted message on client side: "+Base64.getEncoder().encodeToString(cipher2));
+        System.out.println("Encrypted shared key using server's public key on client side: "+Base64.getEncoder().encodeToString(cipher2));
         
         System.out.println("\n--END: PGP PROCEDURE ON CLIENT--\n");
         
@@ -253,12 +258,55 @@ public class Client {
     }
     
     /**
+     * Encrypt and send the text message to the server.
+     * @param message
+     * @throws IOException
+     * @throws UnsupportedEncodingException
+     * @throws SignatureException
+     * @throws InvalidKeyException
+     * @throws NoSuchAlgorithmException
+     * @throws Exception 
+     */
+    public void sendDirectTextMessage(String message) throws IOException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception {
+        
+        //PGP PROCEDURE ON CLIENT SIDE
+        System.out.println("\n--START: PGP PROCEDURE ON CLIENT--\n");
+        
+        //Message on client side
+        System.out.println("Message on client side: "+message);
+        
+        //Create a hash of the message (in this case the password)
+        String hash = asym.ApplySHA256(message);
+        System.out.println("Hash of message on client side: "+hash);
+        
+        //Encrypt the hash using the client's private key
+        byte[] encryptedHash = asym.encrypt(asym.getPrivateKey(), hash.getBytes());
+        System.out.println("Encrypted hash on client side: "+ Base64.getEncoder().encodeToString(encryptedHash));
+        
+        //Concatenate the encrypted hash with the text to be sent to form a message
+        byte[] concatenated = utils.concatenate(message.getBytes(), encryptedHash);
+        System.out.println("Concatenated message on client side: "+ Base64.getEncoder().encodeToString(concatenated));
+        
+        //Compress the message using zip compression
+        byte[] zip = utils.compress(concatenated);
+        System.out.println("Compressed message on client side: "+ Base64.getEncoder().encodeToString(zip));
+
+        //Encrypt the compressed message with the shared key
+        byte[] encryptedMessage = sym.encrypt(sym.getKey(), zip);
+        System.out.println("Encrypted compressed message using shared key on client side: "+Base64.getEncoder().encodeToString(encryptedMessage));
+        
+        System.out.println("\n--END: PGP PROCEDURE ON CLIENT--\n");
+        
+        Message m = ClientProtocol.createDirectTextMessage(userName, encryptedMessage);
+        sendMessage(m);
+    }
+    
+    /**
      * Sends message to server, flushing writer after send.
      * @param m message to send
      * @throws IOException 
      */
     public void sendMessage(Message m) throws IOException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception {
-        String message = ClientProtocol.getMessageMessage(m);
         writer.writeObject(m);
         writer.flush();
     }
@@ -298,5 +346,28 @@ public class Client {
         return userName;
     }
     
+    /**
+     * Return the instance of the Utils object.
+     * @return Utils object.
+     */
+    Utils getUtils(){
+        return utils;
+    }
+    
+    /**
+     * Return the instance of the Asymmetric object.
+     * @return Asymmetric object.
+     */
+    Asymmetric getAsymmetric(){
+        return asym;
+    }
+    
+    /**
+     * Return the instance of the Symmetric object.
+     * @return Symmetric object.
+     */
+    Symmetric getSymmetric(){
+        return sym;
+    }
     
 }

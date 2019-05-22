@@ -116,8 +116,6 @@ public class ClientHandler extends Thread {
         try {
             Message m = (Message) reader.readObject();   //MESSAGE
             String command;
-            //test(m);
-            //testCompression(ClientProtocol.getEncryp(m));
             ONLINE:
             while (m!= null){
                 command = ClientProtocol.getMessageCommand(m);
@@ -153,7 +151,8 @@ public class ClientHandler extends Thread {
     }
     
     /**
-     * Checks for correct login command format then checks that user name and password match up and correspond to stored details.
+     * Checks for correct login command format then checks that user name and decrypted password match up and correspond to stored details.
+     * The password is also authenticated.
      * If details are correct the login is allowed.
      * If details are incorrect the login is denied and user is informed.
      * @param m client message
@@ -164,11 +163,11 @@ public class ClientHandler extends Thread {
         System.out.println("\n--START: PGP PROCEDURE ON SERVER--\n");
         
         //Get the encrypted message
-        byte[] encryptedMessage = ClientProtocol.getLoginMessagePassword(m);
+        byte[] encryptedMessage = ClientProtocol.getEncryptedMessage(m);
         System.out.println("Encrypted message on server side: "+Base64.getEncoder().encodeToString(encryptedMessage));
         
         //Get the encrypted shared key
-        byte[] encryptedSharedKey = ClientProtocol.getSharedKey(m);
+        byte[] encryptedSharedKey = ClientProtocol.getEncryptedSharedKey(m);
         System.out.println("Encrypted shared key on server side: "+Base64.getEncoder().encodeToString(encryptedSharedKey));
         
         //Decrypt sharedKey using the server's private key
@@ -177,7 +176,7 @@ public class ClientHandler extends Thread {
         sym.setKey(sharedKey);
         System.out.println("Shared key on server side: "+Base64.getEncoder().encodeToString(sharedKey.getEncoded()));
         
-        //Use the obtained shared key to decrypt the message
+        //Use the obtained shared key to decrypt the compressed message
         byte[] messageBytes = sym.decrypt(sharedKey, encryptedMessage);
         System.out.println("Compressed message on server side: "+ Base64.getEncoder().encodeToString(messageBytes));
         
@@ -250,30 +249,115 @@ public class ClientHandler extends Thread {
     
     
     /**
-     * Processes a message from client.
+     * Processes a message from client using the PGP security procedure for authentication and confidentiality.
      * @param m client message
      * @throws IOException 
      */
-    private void processMessage(Message m) throws IOException {
+    private void processMessage(Message m) throws IOException, Exception {
+        
         String receiver= ClientProtocol.getMessageReceiver(m);
-        String message= ClientProtocol.getMessageMessage(m);
         
         ClientHandler h = server.getHandler(receiver);
         if (h!=null) {  //receiver exists/is online
-            Message msg = ServerProtocol.createDirectTextMessage("server@ "+message);   //MESSAGE
-            h.send(msg);    //send message
             
-            Message msg2= ServerProtocol.createResponseMessage(ClientProtocol.MESSAGE_CMD, ServerProtocol.SUCCESS_MSG, "Sent direct message.");   //MESSAGE
-            send(msg2); //send success response message
-            System.out.println("User, " + userName + ", sent '" + message +"' to server with reply back to " + receiver + " from server");
+            //PGP PROCEDURE ON SERVER SIDE
+            System.out.println("\n--START: PGP PROCEDURE ON SERVER--\n");
+
+            //Get the encrypted message
+            byte[] encryptedMessage = ClientProtocol.getEncryptedMessage(m);
+            System.out.println("Encrypted message on server side: "+Base64.getEncoder().encodeToString(encryptedMessage));
+
+            //Use the obtained shared key to decrypt the compressed message
+            byte[] compressedMessageBytes = sym.decrypt(sym.getKey(), encryptedMessage);
+            System.out.println("Compressed message on server side: "+ Base64.getEncoder().encodeToString(compressedMessageBytes));
+
+            //Decompress the message
+            byte[] decompressedMessage = utils.decompress(compressedMessageBytes);
+            System.out.println("Decompressed message on server side: "+ Base64.getEncoder().encodeToString(decompressedMessage));
+
+            //Deconcatenate the message into the encrypted hash and the message text (in this case the password)
+            List<byte[]> password_hash = new ArrayList<>();
+            password_hash = utils.deconcatenate(decompressedMessage);
+            byte[] encryptedHash = password_hash.get(0);
+            byte[] messageBytes = password_hash.get(1);
+
+            System.out.println("Encrypted hash on server side: " + Base64.getEncoder().encodeToString(password_hash.get(0)));
+            System.out.println("Message text on server side: " + new String (password_hash.get(1)) );
+
+            //Convert the bytes of the message text (password) into a String
+            String message = new String (messageBytes);
+
+            //Get the client's public key which is the  second key stored in the public.keys file
+            Key clientPublic = Utils.getKeys("public.keys")[1];
+
+            //Decrypt the hash sent from the client using the client's public key
+            byte[] sentHash = asym.decrypt(clientPublic, encryptedHash);
+            System.out.println("Hash of message sent from client on server side: "+ new String(sentHash));
+
+            //Hash the message on the server side
+            System.out.println("Hash of message on server side: " + asym.ApplySHA256(message));
+
+            //Compare the two hashes obtained
+            boolean compare = asym.compare(message, new String(sentHash));
+            System.out.println("Compare hashes on server side: " + compare);
+
+            System.out.println("\n--END: PGP PROCEDURE ON SERVER--\n");
+            
+            if (compare) {
+                //Create encrypted message from server
+                Message msg = createPGPResponse("server@"+message);
+                //Message msg = ServerProtocol.createDirectTextMessage("server@ "+message);   //MESSAGE
+                h.send(msg);    //send message
+
+                Message msg2= ServerProtocol.createResponseMessage(ClientProtocol.MESSAGE_CMD, ServerProtocol.SUCCESS_MSG, "Sent direct message.");   //MESSAGE
+                send(msg2); //send success response message
+                System.out.println("User, " + userName + ", sent '" + message +"' to server with reply back to " + receiver + " from server");
+            }
+            
         }
         
         else {  //receiver doesn't exist/not online
-            Message msg= ServerProtocol.createResponseMessage(ClientProtocol.MESSAGE_CMD, ServerProtocol.FAIL_MSG, receiver + ", not online. Could not send message: " + message);   //MESSAGE
+            Message msg= ServerProtocol.createResponseMessage(ClientProtocol.MESSAGE_CMD, ServerProtocol.FAIL_MSG, receiver + ", not online. Could not send message.");   //MESSAGE
             send(msg);  //send failed response message
             System.err.println("Error: User, " + userName + ", attempted to send message to server and then went offline");
         }        
     }
+    
+    private Message createPGPResponse(String message) throws NoSuchAlgorithmException, Exception{
+        
+        //PGP PROCEDURE ON CLIENT SIDE
+        System.out.println("\n--START: PGP PROCEDURE ON SERVER--\n");
+        
+        //Message on client side
+        System.out.println("Message on server side: "+message);
+        
+        //Create a hash of the message (in this case the password)
+        String hash = asym.ApplySHA256(message);
+        System.out.println("Hash of message on server side: "+hash);
+        
+        //Encrypt the hash using the server's private key
+        byte[] encryptedHash = asym.encrypt(asym.getPrivateKey(), hash.getBytes());
+        System.out.println("Encrypted hash on server side: "+ Base64.getEncoder().encodeToString(encryptedHash));
+        
+        //Concatenate the encrypted hash with the text to be sent to form a message
+        byte[] concatenated = utils.concatenate(message.getBytes(), encryptedHash);
+        System.out.println("Concatenated message on server side: "+ Base64.getEncoder().encodeToString(concatenated));
+        
+        //Compress the message using zip compression
+        byte[] zip = utils.compress(concatenated);
+        System.out.println("Compressed message on server side: "+ Base64.getEncoder().encodeToString(zip));
+
+        //Encrypt the compressed message with the shared key
+        byte[] encryptedMessage = sym.encrypt(sym.getKey(), zip);
+        System.out.println("Encrypted compressed message using shared key on server side: "+Base64.getEncoder().encodeToString(encryptedMessage));
+        
+        System.out.println("\n--END: PGP PROCEDURE ON SERVER--\n");
+        
+        Message m = ServerProtocol.createDirectTextMessage(encryptedMessage);
+        
+        return m;
+    }
+    
     
     //Helper methods:
     
