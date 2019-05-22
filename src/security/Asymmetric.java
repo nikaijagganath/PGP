@@ -1,32 +1,21 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package security;
 
-import java.io.FileInputStream;
-import java.io.ObjectInputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
-import security.Utils;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
-import java.security.Signature;
 import java.security.SignatureException;
-import javax.crypto.BadPaddingException;
+import java.util.Base64;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Hex;
 
@@ -35,21 +24,56 @@ import org.bouncycastle.util.encoders.Hex;
  * @author mikhail
  */
 public class Asymmetric {
+    
+    //INSTANCE VARIABLES
+    
+    /**
+     * Array of public-private key pair
+     */
     Key[] keys;
+    
+    /**
+     * The encrypted bytes and corresponding String
+     */
     String encryptedText;
     byte [] encryptedBytes;
     
+    /**
+     * The decrypted bytes and corresponding String
+     */
     String decryptedText;
     byte [] decryptedBytes;
-    //Signature sig;
-    Utils utils = new Utils();
     
     
-    public Asymmetric() throws NoSuchAlgorithmException, NoSuchPaddingException{
+    //CONSTRUCTORS
+    
+    /**
+     * Constructor which takes in a public-private keys.
+     * @param keys public-private key pair
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException
+     * @throws IOException 
+     */
+    public Asymmetric(Key[] keys) throws NoSuchAlgorithmException, NoSuchPaddingException, IOException{
+        this.keys = new Key[2];
+        this.keys = keys;
+        
         Security.addProvider(new BouncyCastleProvider());
-        //sig = Signature.getInstance("SHA512WithRSA");
     }
-
+    
+    /**
+     * Constructor which takes in the filename from which the public-private keys can be read.
+     * @param filename file from which the key-pair is obtained.
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException
+     * @throws IOException 
+     */
+    public Asymmetric(String filename) throws NoSuchAlgorithmException, NoSuchPaddingException, IOException{
+        this.keys = new Key[2];
+        this.keys = Utils.getKeys(filename);
+        Security.addProvider(new BouncyCastleProvider());
+    }
+    
     
     /**
      * Generates key pair and returns it
@@ -63,6 +87,12 @@ public class Asymmetric {
         return pair;
     }
     
+    /**
+     * Creates a hash of a text message.
+     * @param plainText
+     * @return
+     * @throws NoSuchAlgorithmException 
+     */
     public String ApplySHA256(String plainText) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte [] hash = digest.digest(plainText.getBytes(StandardCharsets.UTF_8));
@@ -70,16 +100,20 @@ public class Asymmetric {
         return sha256hex;
     }
     
+    /**
+     * Compares the hash sent with a hash of the message received.
+     * @param message
+     * @param hash
+     * @return true if the hash sent and the hash calculated match, else false.
+     * @throws InvalidKeyException
+     * @throws SignatureException
+     * @throws NoSuchAlgorithmException 
+     */
     public boolean compare(String message, String hash) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException{
         
-        if (ApplySHA256(message).equals(hash))
-        {
-            return true;
-        }
-        else 
-        {
-            return false;
-        }
+        if (ApplySHA256(message).equals(hash)) return true;
+
+        return false;
     }
     
     /**
@@ -93,17 +127,8 @@ public class Asymmetric {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
         encryptedBytes = cipher.doFinal(message);
-        encryptedText = getHexString(encryptedBytes);
+        encryptedText = Base64.getEncoder().encodeToString(encryptedBytes);
         return encryptedBytes;
-    }
-    
-    public static byte[] hexStringToByteArray(String s) {
-        int len = s.length();
-        byte[] data = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i+1), 16));
-        }
-        return data;
     }
     
     /**
@@ -121,65 +146,22 @@ public class Asymmetric {
         
         return decryptedBytes;
     }
-    
-    
-     /**
-     * Returns the encrypted bytes of the message as a hexadecimal string.
-     * @param b bytes to convert to a hex string.
-     * @return the hex string of the converted bytes.
-     * @throws Exception 
-     */
-    public String getHexString(byte[] b) throws Exception {
-        String result = "";
-        for (int i = 0; i < b.length; i++) {
-            result += Integer.toString( ( b[i] & 0xff ) + 0x100, 16).substring( 1 );
-        }
-        return result;
-    }
 
     //GETTERS//
 
-    /**
-     * Return an array of keys from a file
-     * @param fileName
-     * @return 
-     */
-    public Key[] getKeys(String fileName){
-        keys = new Key[2];
-        try{
-            PublicKey keyP;
-            PrivateKey keyV;
-            FileInputStream fileIn = new FileInputStream(fileName);
-            ObjectInputStream objectIn = new ObjectInputStream(fileIn);
-            keyP = (PublicKey) objectIn.readObject();
-            keyV = (PrivateKey) objectIn.readObject();
-            keys[0] = keyP;
-            keys[1] = keyV;
-            objectIn.close();
-        }
-        catch(Exception e){
-            System.out.println(e);
-        }
-        return keys;
-    }
-
         /**
      * Get the public key from a specified file
-     * @param name
      * @return 
      */
-    public PublicKey getPublicKey(String name){
-        //Key[] key = getKeys(name);
+    public PublicKey getPublicKey(){
         return (PublicKey) keys[0];
     }
     
     /**
      * Get the private key from a specified file
-     * @param name
      * @return 
      */
-    public PrivateKey getPrivateKey(String name){
-        //Key[] key = getKeys(name);
+    public PrivateKey getPrivateKey(){
         return (PrivateKey) keys[1];
     }
     

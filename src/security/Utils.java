@@ -7,14 +7,15 @@ package security;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.UnsupportedEncodingException;
-import java.security.KeyPair;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -22,74 +23,98 @@ import java.util.zip.Inflater;
 import javax.crypto.NoSuchPaddingException;
 import org.bouncycastle.util.Arrays;
 
-/**
- *
- * @author mikhail
- */
-public class Utils {
-
-    /**
-     * Initialize FileOutputStream
-     */
-    FileOutputStream fileOut;
-    /**
-     * Initialize ObjectOutputStream
-     */
-    ObjectOutputStream objectOut;
-    /**
-     * Initialize FileOutput Stream
-     */
-    FileOutputStream fOut;
-    /**
-     * Initialize ObjectOutputStream
-     */
-    ObjectOutputStream oOut;
+public class Utils {  
     
-    
-
+    /**
+     * Utils constructor
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException 
+     */
     public Utils() throws NoSuchAlgorithmException, NoSuchPaddingException{
         
     }
+    
+     /**
+     * Return an array of keys from a file
+     * @param fileName
+     * @return 
+     */
+    public static Key[] getKeys(String fileName){
+        Key [] keys = new Key[2];
+        try{
+            FileInputStream fileIn = new FileInputStream(fileName);
+            ObjectInputStream objectIn = new ObjectInputStream(fileIn);
+            keys[0] = (Key) objectIn.readObject();
+            keys[1] = (Key) objectIn.readObject();
+            objectIn.close();
+        }
+        catch(IOException | ClassNotFoundException e){
+            System.out.println(e);
+        }
+        return keys;
+    }
+    
+    
     /**
      * Generates key pair and then writes the private and public key to a specified file
-     * @param name
+     * @param filename
+     * @param keys
      * @throws IOException
      * @throws NoSuchAlgorithmException 
      */
-    public void writeToFile(String name) throws IOException, NoSuchAlgorithmException{
-        KeyPair keyPair = Asymmetric.generateKeys();
+    public void writeToFile(String filename, Key [] keys) throws IOException, NoSuchAlgorithmException{
         try{
-            String fileName = name + ".keys";
-            fileOut = new FileOutputStream(fileName);
-            objectOut = new ObjectOutputStream(fileOut);
-            objectOut.writeObject(keyPair.getPublic());
-            objectOut.writeObject(keyPair.getPrivate());
-            objectOut.close(); 
-            //TODO: public file
+            FileOutputStream fileOut = new FileOutputStream(filename);
+            ObjectOutputStream objectOut = new ObjectOutputStream(fileOut);
+            for (Key key : keys) {
+                objectOut.writeObject(key);
             }
-        catch(Exception e){
+            objectOut.close(); 
+            }
+        catch(IOException e){
             System.out.println(e);
         }
     }
     
+    /**
+     * Add new keys to the public.keys file
+     * @param filename
+     * @param key
+     * @throws IOException 
+     * @throws java.lang.ClassNotFoundException 
+     * @throws java.security.NoSuchAlgorithmException 
+     */
+    public void appendToFile(String filename, Key key) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+        
+        //Read the server's public key stored in the files
+        FileInputStream fileIn = new FileInputStream(filename);
+        ObjectInputStream objectIn = new ObjectInputStream(fileIn);
+        Key [] keys  = new Key[2];
+        keys[0] = (Key) objectIn.readObject(); //The server's public key
+        objectIn.close();
+        
+        keys[1] = key; //The client's public key
+        
+        //Write both the server's public key and client's public key to the file
+        writeToFile(filename, keys);
+    }
 
     /**
-     * Checking to see if a file exists
-     * @param name
+     * Checking to see if a file exists.
+     * @param name file to check if it exists.
      * @return 
      */
     public boolean checkFile(String name){
-        //check if file exists
         File tmpDir = new File(name);
         boolean exists = tmpDir.exists();
         return exists;
     }
 
     /**
-     * Concatenate two byte arrays with a symbol in the middle
+     * Concatenate two byte arrays with the '^' symbol in the middle to separate them.
      * @param message
      * @param hash
-     * @return
+     * @return concatenated byte arrays separated with a '^'.
      * @throws IOException 
      */
     public byte[] concatenate(byte[] message, byte[] hash) throws IOException{
@@ -104,47 +129,34 @@ public class Utils {
     }
     
     /**
-     * Deconcatenate a byte array to get the message and hash byte arrays
+     * De-concatenate a byte array to get the message and encrypted hash byte arrays.
      * @param message
-     * @return
+     * @return list of byte arrays for the message and encrypted hash byte arrays.
      * @throws UnsupportedEncodingException 
      */
     public List<byte []> deconcatenate(byte[] message) throws UnsupportedEncodingException{
         List<byte[]> list = new ArrayList<>();
         
-        //Getting the index of the '^'
+        //Find the index of the '^' separating the encrypted hash and message
         int index = 0;
         
-        for (int i =message.length-1; i>=0; i--)
-        {
-            if (message[i]=='^')
-            {
+        for (int i = message.length-1; i >= 0; i--){
+            if (message[i]=='^'){
                 index = i;
                 break;
             }
         }
-        list.add(Arrays.copyOfRange(message, 0, index));
-        list.add(Arrays.copyOfRange(message, index+1, message.length));
+        list.add(Arrays.copyOfRange(message, 0, index)); //Byte array of encrypted hash
+        list.add(Arrays.copyOfRange(message, index+1, message.length)); //Byte array of message
         
         return list;
-    }
-    
-    
-    
-    /**
-     * Returns byte array of string
-     * @param message
-     * @return 
-     */
-    public byte[] getByteArray(String string){
-        return string.getBytes();
     }
     
     
     /**
      * Compresses the byte array using the zip algorithm
      * @param messageAndHash
-     * @return
+     * @return array of compressed bytes
      * @throws IOException 
      */
     public byte[] compress(byte[] messageAndHash) throws IOException{
@@ -170,7 +182,7 @@ public class Utils {
     /**
      * Decompresses the compressed byte array using the zip algorithm
      * @param compressedMessage
-     * @return 
+     * @return array of decompressed bytes
      */
     public byte[] decompress(byte[] compressedMessage) throws IOException{
         

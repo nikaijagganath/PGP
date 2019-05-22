@@ -167,14 +167,15 @@ public class ChatFrame extends javax.swing.JFrame implements MessageListener, Se
         if(message.equals("")){ //Ensure no blank messages are sent.
             JOptionPane.showMessageDialog(null, "Please enter a message", "Warning", JOptionPane.WARNING_MESSAGE);
         }
+        else if(message.contains("^")){
+            JOptionPane.showMessageDialog(null, "Messages cannot contain the '^' symbol!", "Warning", JOptionPane.WARNING_MESSAGE);
+        }
         else{
             try {
                 chat_area.append(String.format("%-15s%10s%n", "me > ", message));//Display message in text area.
                 try {
                     handleDirectTextMessageGUI(message);
-                } catch (UnsupportedEncodingException ex) {
-                    Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (SignatureException ex) {
+                } catch (UnsupportedEncodingException | SignatureException ex) {
                     Logger.getLogger(ChatFrame.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 message_txt.setText("");

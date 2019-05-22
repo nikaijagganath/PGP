@@ -57,7 +57,7 @@ public class LoginFrame extends javax.swing.JFrame {
         
         } 
         
-        catch (IOException ex) {
+        catch (IOException | ClassNotFoundException ex) {
             System.out.println("Connection Error: Couldn't connect to " + constants.Constants.SERVER_NAME + " on port " + constants.Constants.SERVER_PORT_NUM + ".");
         }
     }
@@ -111,7 +111,7 @@ public class LoginFrame extends javax.swing.JFrame {
     private void login_btnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_login_btnActionPerformed
         String name= username_txt.getText(); //User's name
         String password= password_txt.getText(); //User's password
-        if(name.equals("") || password.equals("")) {    //incorrect format(no spaces/@/#)
+        if(name.equals("") || password.equals("")) {
             username_txt.setText("");
             password_txt.setText("");
             JOptionPane.showMessageDialog(null, "Please enter both username and password.", "Warning", JOptionPane.WARNING_MESSAGE);

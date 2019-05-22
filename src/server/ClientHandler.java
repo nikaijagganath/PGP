@@ -7,15 +7,12 @@ import protocol.*;
 import java.io.*;
 import java.util.logging.*;
 import java.net.*;
-import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import security.*;
 
@@ -54,21 +51,43 @@ public class ClientHandler extends Thread {
      */
     private String userName;
 
+    /**
+     * Object for asymmetric RSA encryption/decryption  
+     */
     private Asymmetric asym;
+    
+    /**
+     * Object for symmetric AES encryption/decryption  
+     */
     private Symmetric sym;
-    Utils utils = new Utils();
+    
+    /**
+     * Object containing utility functions needed for encryption/decryption purposes
+     */
+    private Utils utils;
 
+    
     //Constructor:
     
     /**
      * Creates new client handler thread to relay messages.
      * @param server server that client connects to and thread services
      * @param clientSocket socket on client side linking server to client
+     * @throws java.security.NoSuchAlgorithmException
+     * @throws javax.crypto.NoSuchPaddingException
+     * @throws java.io.IOException
      */
-    public ClientHandler(Server server, Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException {
-        asym = new Asymmetric();
+    public ClientHandler(Server server, Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException, IOException {
+        
+        //Initialise encryption objects
+        asym = new Asymmetric("server.keys");
+        //asym.getKeys("server.keys");
+        
         sym = new Symmetric();
-        asym.getKeys("server.keys");
+        
+        //Create utils object
+        utils = new Utils();
+        
         this.server = server;
         this.clientSocket = clientSocket;
         userName = null;
@@ -140,57 +159,66 @@ public class ClientHandler extends Thread {
      * @param m client message
      */
     private void processLogin(Message m) throws IOException, Exception {
-        String name= ClientProtocol.getLoginMessageUsername(m);
-        byte[] encryptedPassword= ClientProtocol.getLoginMessagePassword(m);
+        
+        //PGP PROCEDURE ON SERVER SIDE
+        System.out.println("\n--START: PGP PROCEDURE ON SERVER--\n");
+        
+        //Get the encrypted message
+        byte[] encryptedMessage = ClientProtocol.getLoginMessagePassword(m);
+        System.out.println("Encrypted message on server side: "+Base64.getEncoder().encodeToString(encryptedMessage));
+        
+        //Get the encrypted shared key
         byte[] encryptedSharedKey = ClientProtocol.getSharedKey(m);
-        //Decrypt Password and SharedKey
-        byte[] sharedKeyBytes= asym.decrypt(asym.getPrivateKey("WHATEVER"), encryptedSharedKey);
+        System.out.println("Encrypted shared key on server side: "+Base64.getEncoder().encodeToString(encryptedSharedKey));
+        
+        //Decrypt sharedKey using the server's private key
+        byte[] sharedKeyBytes = asym.decrypt(asym.getPrivateKey(), encryptedSharedKey);
         Key sharedKey = new SecretKeySpec(sharedKeyBytes, 0, sharedKeyBytes.length, "AES");
         sym.setKey(sharedKey);
-        System.out.println("shared key on server side: "+Base64.getEncoder().encodeToString(sharedKey.getEncoded()));
+        System.out.println("Shared key on server side: "+Base64.getEncoder().encodeToString(sharedKey.getEncoded()));
         
-        //Using shared key to decrypt message
-        byte[] messageBytes = sym.decrypt(sharedKey, encryptedPassword);
-        System.out.println("message bytes  on server side = "+ Base64.getEncoder().encodeToString(messageBytes));
+        //Use the obtained shared key to decrypt the message
+        byte[] messageBytes = sym.decrypt(sharedKey, encryptedMessage);
+        System.out.println("Compressed message on server side: "+ Base64.getEncoder().encodeToString(messageBytes));
         
-        //Decompress
+        //Decompress the message
         byte[] decompressedMessage = utils.decompress(messageBytes);
-        System.out.println("decompressed message on server side = "+ Base64.getEncoder().encodeToString(decompressedMessage));
-       
+        System.out.println("Decompressed message on server side: "+ Base64.getEncoder().encodeToString(decompressedMessage));
         
-        //Deconcatenate 
+        //Deconcatenate the message into the encrypted hash and the message text (in this case the password)
         List<byte[]> password_hash = new ArrayList<>();
         password_hash = utils.deconcatenate(decompressedMessage);
         byte[] encryptedHash = password_hash.get(0);
         byte[] passwordBytes = password_hash.get(1);
         
-        String s = Base64.getEncoder().encodeToString(password_hash.get(0));
-        String t = new String (password_hash.get(1));
-        System.out.println("encrypted hash on server side =" + s);
-        System.out.println("plain message on server side =" + t);
+        System.out.println("Encrypted hash on server side: " + Base64.getEncoder().encodeToString(password_hash.get(0)));
+        System.out.println("Message text on server side: " + new String (password_hash.get(1)) );
         
-        
+        //Convert the bytes of the message text (password) into a String
         String password = new String (passwordBytes);
         
-        //System.out.println("password "+new String(password,"UTF-8"));
-        System.out.println("hashed password on server side = " + asym.ApplySHA256(password));
+        //Get the client's public key which is the  second key stored in the public.keys file
+        Key clientPublic = Utils.getKeys("public.keys")[1];
         
+        //Decrypt the hash sent from the client using the client's public key
+        byte[] sentHash = asym.decrypt(clientPublic, encryptedHash);
+        System.out.println("Hash of message sent from client on server side: "+ new String(sentHash));//Base64.getEncoder().encodeToString(sentHash));
         
-        // Need additional asymmetric object containing client keys --> FIX to get piublic keys from public.keys file
-        //Compare hashes
-        Asymmetric asymc = new Asymmetric();
-        Key[] keysc = asymc.getKeys("client.keys");
+        //Hash the message on the server side
+        System.out.println("Hash of message on server side: " + asym.ApplySHA256(password));
         
-        byte[] sentHash = asym.decrypt(keysc[0], encryptedHash);
-        System.out.println("hash sent from client on server side = "+ Base64.getEncoder().encodeToString(sentHash) );
+        //Compare the two hashes obtained
         boolean compare = asym.compare(password, new String(sentHash));
-        System.out.println("compare hashes on server side = " + compare);
+        System.out.println("Compare hashes on server side: " + compare);
 
-
+        System.out.println("\n--END: PGP PROCEDURE ON SERVER--\n");
+        
+        //Check if login is valid and authenticated
+        String name = ClientProtocol.getLoginMessageUsername(m);
         
         System.out.println("User attempted login: " + name + " " + password);
         
-        if (server.checkLogin(name, password)) {
+        if (server.checkLogin(name, password) && compare) {
             this.userName= name;        //set username
             System.out.println("User logged in succesfully: " + userName);
             Message msg= ServerProtocol.createResponseMessage(ClientProtocol.LOGIN_CMD, ServerProtocol.SUCCESS_MSG, "Successful Login");    //MESSAGE
@@ -200,7 +228,7 @@ public class ClientHandler extends Thread {
         else {  //incorrect login details
             Message msg= ServerProtocol.createResponseMessage(ClientProtocol.LOGIN_CMD, ServerProtocol.FAIL_MSG, "Incorrect username or password.");   //MESSAGE
             writer.writeObject(msg);    //MESSAGE
-            System.err.println("ERROR: Login Failed. " + name + " " + new String(password));
+            System.err.println("ERROR: Login Failed. " + name + " " + password);
         }
     }
     

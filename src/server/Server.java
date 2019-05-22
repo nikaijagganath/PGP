@@ -61,18 +61,17 @@ public class Server {
     
     /**
      * Opens server socket on server's port number and continuously accepts clients, creating new client handler threads and adding them to the handler list.
+     * @throws java.security.NoSuchAlgorithmException
      */
     public void runServer() throws NoSuchAlgorithmException {
         try {
-            while(true) {
-                System.out.println("Connecting to client...");
-                Socket clientSocket= serverSocket.accept();
-                System.out.println("Accepted connection: client " + clientSocket);
-                try {
-                    addHandler(clientSocket);
-                } catch (NoSuchPaddingException ex) {
-                    Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-                }
+            System.out.println("Connecting to client...");
+            Socket clientSocket= serverSocket.accept();
+            System.out.println("Accepted connection: client " + clientSocket);
+            try {
+                addHandler(clientSocket);
+            } catch (NoSuchPaddingException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
             }
         } 
         catch (IOException ex) {
@@ -87,8 +86,11 @@ public class Server {
     /**
      * Creates new client handler thread connecting the specified client socket with the server and adds handler to the handler list.
      * @param clientSocket client socket on the chat client 
+     * @throws java.security.NoSuchAlgorithmException 
+     * @throws javax.crypto.NoSuchPaddingException 
+     * @throws java.io.IOException 
      */
-    public void addHandler(Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException {
+    public void addHandler(Socket clientSocket) throws NoSuchAlgorithmException, NoSuchPaddingException, IOException {
         ClientHandler handler= new ClientHandler(this, clientSocket);
         handlerList.add(handler);
         handler.start();
@@ -154,29 +156,6 @@ public class Server {
             }
         }
         return false;
-    }
-    
-    /**
-     * Attempts to add new user and tells user if add was successful or not.
-     * @param username new user name to add
-     * @param password corresponding password
-     * @return true if added successfully otherwise false
-     * @throws IOException 
-     */
-    public synchronized boolean addUser(String username, String password) throws IOException {
-        for (String l : (Set<String>)loginList.keySet()) {
-            if(username.equalsIgnoreCase(l)) {
-                return false;
-            }
-        }
-        
-        //else {
-            loginList.put(username, password);
-            try (PrintWriter w = new PrintWriter(new FileWriter(Constants.LOGINS, true))) {
-                w.println(username + " " + password);   //add to stored login details file
-            }
-            return true;
-        //}
     }
     
 }

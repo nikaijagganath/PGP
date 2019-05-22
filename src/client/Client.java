@@ -8,12 +8,11 @@ import java.io.*;
 import java.net.*;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
 import java.security.SignatureException;
 import java.util.*;
 import javax.crypto.NoSuchPaddingException;
-import security.*;
 public class Client {
     
     //Instance Variables:
@@ -67,12 +66,19 @@ public class Client {
     ArrayList<ServerResponseListener> serverResponseListeners; 
     
     /**
-     * Util object
+     * Object for asymmetric RSA encryption/decryption  
      */
-    Utils utils = new Utils();
+    private Asymmetric asym;
     
-    Symmetric sym ;
-    Asymmetric asym ;
+    /**
+     * Object for symmetric AES encryption/decryption  
+     */
+    private Symmetric sym;
+    
+    /**
+     * Object containing utility functions needed for encryption/decryption purposes
+     */
+    private Utils utils;
 
     
     //Constructor:
@@ -83,10 +89,33 @@ public class Client {
      * @param serverName name/IP address of the server
      * @param portNo the port number on which server is listening
      * @throws IOException 
+     * @throws java.security.NoSuchAlgorithmException 
+     * @throws javax.crypto.NoSuchPaddingException 
+     * @throws java.lang.ClassNotFoundException 
      */
-    public Client(String serverName, int portNo) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException {
+    public Client(String serverName, int portNo) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, ClassNotFoundException {
+        
+        //Create utils object
+        utils = new Utils();
+        
+        //Create client.keys file if it does not exist
+        if(!utils.checkFile("client.keys")){ 
+            KeyPair keyPair = Asymmetric.generateKeys();
+            Key [] keys = new Key [2];
+            keys[0] = keyPair.getPublic();
+            keys[1] = keyPair.getPrivate();
+            utils.writeToFile("client.keys", keys); //Write these keys to the server.keys file
+            utils.appendToFile("public.keys", keys[0]); //Append the client's public key to the public.keys file
+            
+            asym = new Asymmetric(keys); //Initialise asymmetric object with created keys
+        }
+        else{
+            asym = new Asymmetric("client.keys"); //Initialise asymmetric object with existing keys
+        }
+        
+        //Initialise encryption objects
         sym = new Symmetric();
-        asym = new Asymmetric();
+        
 
         //Connect to server:
         this.serverName= serverName;
@@ -104,12 +133,6 @@ public class Client {
         messageListeners = new ArrayList<>();
         serverResponseListeners = new ArrayList<>();
         
-        //Create utils object
-        if(!utils.checkFile("client.keys")){
-            utils.writeToFile("client");
-            
-        
-        }
     }
 
     
@@ -137,29 +160,47 @@ public class Client {
      */
     public boolean login(String userName, String password) throws IOException, ClassNotFoundException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception  {
 
-        //Message msg= ClientProtocol.createLoginMessage(userName, password);
-        //BASE64Encoder encoder = new BASE64Encoder();
-        //tell server you want to log in
-        //byte[] hash = asym.signMessage(password, "client.keys");
+        //PGP PROCEDURE ON CLIENT SIDE
+        System.out.println("\n--START: PGP PROCEDURE ON CLIENT--\n");
+        
+        //Create a hash of the message (in this case the password)
         String hash = asym.ApplySHA256(password);
-        byte[] encryptedHash = asym.encrypt(asym.getKeys("client.keys")[1], hash.getBytes());
-        System.out.println("encryptedHash on client side = "+ Base64.getEncoder().encodeToString(encryptedHash));
-        byte[] concat = utils.concatenate(password.getBytes(), encryptedHash);
-        System.out.println("concat msg + encrypted hash on client side = "+ Base64.getEncoder().encodeToString(concat));
-        byte[] zip = utils.compress(concat);
-        System.out.println("compressed message on client side = "+ Base64.getEncoder().encodeToString(zip));
-        Key sKey = sym.buildKey();
-        System.out.println("shared key on client side = "+Base64.getEncoder().encodeToString(sKey.getEncoded()));
-        byte[] cipher1 = sym.encrypt(sKey, zip);
-        Key server = asym.getKeys("server.keys")[0];
-        byte[] cipher2 = asym.encrypt(server, sKey.getEncoded());
-        //asym.getHexString(sKey.getEncoded()).getBytes()
-        Message msg= ClientProtocol.createLoginMessage(userName, cipher1, cipher2 );
+        System.out.println("Hash of message on client side: "+hash);
+        
+        //Encrypt the hash using the client's private key
+        byte[] encryptedHash = asym.encrypt(asym.getPrivateKey(), hash.getBytes());
+        System.out.println("Encrypted hash on client side: "+ Base64.getEncoder().encodeToString(encryptedHash));
+        
+        //Concatenate the encrypted hash with the text to be sent to form a message
+        byte[] concatenated = utils.concatenate(password.getBytes(), encryptedHash);
+        System.out.println("Concatenated message on client side: "+ Base64.getEncoder().encodeToString(concatenated));
+        
+        //Compress the message using zip compression
+        byte[] zip = utils.compress(concatenated);
+        System.out.println("Compressed message on client side: "+ Base64.getEncoder().encodeToString(zip));
+        
+        //Create shared key to use for the session with the server
+        Key sharedKey = sym.buildKey();
+        System.out.println("Shared key created on client side: "+Base64.getEncoder().encodeToString(sharedKey.getEncoded()));
+        byte[] cipher1 = sym.encrypt(sharedKey, zip);
+        System.out.println("Encrypted shared key on client side: "+Base64.getEncoder().encodeToString(cipher1));
+        
+        //Get the server's public key which is the first key stored in the public.keys file
+        Key serverPublic = Utils.getKeys("public.keys")[0]; 
+        
+        //Encrypt the shared key with the server's public key to send to the server
+        byte[] cipher2 = asym.encrypt(serverPublic, sharedKey.getEncoded());
+        System.out.println("Encrypted message on client side: "+Base64.getEncoder().encodeToString(cipher2));
+        
+        System.out.println("\n--END: PGP PROCEDURE ON CLIENT--\n");
+        
+        //Send the message to the server
+        Message msg = ClientProtocol.createLoginMessage(userName, cipher1, cipher2);
         sendMessage(msg); 
         
-        Message response= (Message) reader.readObject();   //check for whether correctly logged in at server
-        if (ServerProtocol.isSuccessResponse(response)) {   //set username
-            this.userName= userName;
+        Message response = (Message) reader.readObject();   //Check for whether correctly logged in at server.
+        if (ServerProtocol.isSuccessResponse(response)) {   
+            this.userName= userName; //Set username
         }
         return ServerProtocol.isSuccessResponse(response);
     }
@@ -218,14 +259,9 @@ public class Client {
      */
     public void sendMessage(Message m) throws IOException, UnsupportedEncodingException, SignatureException, InvalidKeyException, NoSuchAlgorithmException, Exception {
         String message = ClientProtocol.getMessageMessage(m);
-        //Key sKey = sym.buildKey();
-        //m.setTest(sKey, sym.encrypt(sKey, message));
-        //m.setTest(null, asym.encrypt(utils.getPublicKey("server.keys"), message));
-        //m.setTest(null, utils.compress(message.getBytes()));
         writer.writeObject(m);
         writer.flush();
     }
-    
     
     
     //Getters and setters:
